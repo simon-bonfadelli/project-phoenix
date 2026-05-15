@@ -1,5 +1,6 @@
 # Use a base image with Java
-FROM eclipse-temurin:17-jdk-alpine
+FROM openjdk:17
+EXPOSE 8080
 
 # Copy the built jar file into the image
 COPY target/*.jar app.jar
