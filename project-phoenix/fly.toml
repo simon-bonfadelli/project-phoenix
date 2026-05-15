@@ -1,10 +1,5 @@
-# fly.toml app configuration file generated for project-phoenix on 2026-05-15T15:20:47Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = 'project-phoenix'
-primary_region = 'ams'
+primary_region = 'fra'
 
 [build]
   dockerfile = 'Dockerfile'
