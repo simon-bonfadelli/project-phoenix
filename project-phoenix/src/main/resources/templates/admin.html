@@ -1,0 +1,101 @@
+<!-- src/main/resources/templates/admin.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>GI Flow - Admin</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 20px 0; }
+        h1 { color: #00008f; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #00008f; color: white; }
+        img { border-radius: 50%; }
+        button, .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin: 5px; }
+        .btn-primary { background: #00008f; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        textarea { width: 100%; height: 200px; font-family: monospace; font-size: 12px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+<h1>🛠 Admin Dashboard</h1>
+
+<div class="card">
+    <h2>Registered Users (<span id="count" th:text="${#lists.size(users)}">0</span>)</h2>
+    <table>
+        <thead>
+        <tr><th>Avatar</th><th>Name</th><th>Gender</th><th>Job Profile</th><th>Division</th><th>Group</th></tr>
+        </thead>
+        <tbody id="user-table"
+               hx-ext="sse"
+               sse-connect="/admin/sse"
+               sse-swap="user-update"
+               hx-swap="beforeend">
+        <tr th:each="user : ${users}" th:id="'user-' + ${user.id}">
+            <td><img th:src="${user.avatarUrl}" width="32" height="32"/></td>
+            <td th:text="${user.generatedName}"></td>
+            <td th:text="${user.gender}"></td>
+            <td th:text="${user.jobProfile}"></td>
+            <td th:text="${user.division}"></td>
+            <td th:text="${user.groupId != null ? user.groupId : '-'}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Export / Import</h2>
+    <button class="btn btn-primary" onclick="exportUsers()">📤 Export JSON</button>
+    <button class="btn btn-success" onclick="importGroups()">📥 Import Group Assignments</button>
+    <textarea id="json-area" placeholder='Export will appear here. For import, paste JSON like:
+{
+  "groupAssignments": {
+    "group-1": ["userId1", "userId2"],
+    "group-2": ["userId3", "userId4"]
+  }
+}'></textarea>
+</div>
+
+<div class="card">
+    <h2>Available Groups</h2>
+    <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Room</th><th>QR URL</th></tr></thead>
+        <tbody>
+        <tr th:each="group : ${groups}">
+            <td th:text="${group.id}"></td>
+            <td th:text="${group.name}"></td>
+            <td th:text="${group.room}"></td>
+            <td th:text="${group.qrCodeUrl}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function exportUsers() {
+        const res = await fetch('/admin/export');
+        const data = await res.json();
+        document.getElementById('json-area').value = JSON.stringify(data, null, 2);
+    }
+
+    async function importGroups() {
+        const json = document.getElementById('json-area').value;
+        try {
+            const data = JSON.parse(json);
+            const res = await fetch('/admin/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const text = await res.text();
+            alert(text);
+            location.reload();
+        } catch (e) {
+            alert('Invalid JSON: ' + e.message);
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!-- src/main/resources/templates/registered.html -->
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>GI Flow - Registered</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; background: #f5f5f5; text-align: center; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 20px 0; }
+        h1 { color: #00008f; }
+        h2 { color: #00008f; }
+        h3 { color: #00008f; }
+        img.avatar { width: 120px; height: 120px; border-radius: 50%; border: 3px solid #00008f; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; background: #e8e8ff; color: #00008f; margin: 3px; font-size: 13px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>✅ Registered!</h1>
+    <img th:src="${user.avatarUrl}" class="avatar" alt="Avatar"/>
+    <h2 th:text="${user.generatedName}">Name</h2>
+    <span class="badge" th:text="${user.gender}">Gender</span>
+    <span class="badge" th:text="${user.jobProfile}">Job</span>
+    <span class="badge" th:text="${user.division}">Division</span>
+</div>
+
+<div id="group-info"
+     hx-ext="sse"
+     sse-connect="/sse/user"
+     sse-swap="group-update"
+     hx-swap="innerHTML">
+    <div th:if="${group != null}" class="card">
+        <h2>🎉 You've been assigned!</h2>
+        <h3 th:text="${group.name}">Group</h3>
+        <p><strong>Room:</strong> <span th:text="${group.room}">Room</span></p>
+        <img th:src="'data:image/png;base64,' + ${qrCode}" alt="QR Code"/>
+        <p><small th:text="${group.qrCodeUrl}">URL</small></p>
+    </div>
+    <div th:if="${group == null}" class="card">
+        <p>⏳ Waiting for group assignment...</p>
+    </div>
+</div>
+</body>
+</html>
