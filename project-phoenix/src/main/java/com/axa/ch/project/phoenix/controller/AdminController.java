@@ -50,30 +50,22 @@ public class AdminController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> exportUsers() {
         Collection<User> users = userStore.getAllRegisteredUsers();
+
         List<Map<String, String>> userList = users.stream().map(u -> {
             Map<String, String> m = new LinkedHashMap<>();
             m.put("id", u.getId());
-            m.put("name", u.getGeneratedName());
+            m.put("generatedName", u.getGeneratedName());
             m.put("gender", u.getGender());
             m.put("jobProfile", u.getJobProfile());
             m.put("division", u.getDivision());
             m.put("groupId", u.getGroupId());
             return m;
-        }).collect(Collectors.toList());
+        }).toList();
 
-        List<Map<String, Object>> groupList = userStore.getGroups().values().stream().map(g -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", g.getId());
-            m.put("name", g.getName());
-            m.put("room", g.getRoom());
-            m.put("qrCodeUrl", g.getQrCodeUrl());
-            return m;
-        }).collect(Collectors.toList());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("users", userList);
 
-        Map<String, Object> export = new LinkedHashMap<>();
-        export.put("users", userList);
-        export.put("groups", groupList);
-        return ResponseEntity.ok(export);
+        return ResponseEntity.ok(payload);
     }
 
     @PostMapping(value = "/import", consumes = MediaType.APPLICATION_JSON_VALUE)

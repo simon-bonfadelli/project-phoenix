@@ -5,11 +5,15 @@ import com.axa.ch.project.phoenix.model.User;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class UserStore {
@@ -18,66 +22,170 @@ public class UserStore {
     private final Map<String, User> usersById = new ConcurrentHashMap<>();
     private final Map<String, Group> groups = new LinkedHashMap<>();
 
-    private static final String[] MALE_NAMES = {
-        "Captain Byte", "Professor Loop", "Sir Stackalot", "Duke Pipeline",
-        "Baron Widget", "Count Pixel", "Major Debug", "Admiral Schema",
-        "Knight Kernel", "Lord Syntax", "Mister Cache", "Doctor Thread",
-        "Agent Proxy", "Chief Vector", "Marshal Token"
+    private final Map<String, String> nameToUserId = new ConcurrentHashMap<>();
+
+    private static final int MAX_NAME_ATTEMPTS = 200;
+
+    private static final String[] MALE_TITLES = {
+            "Captain", "Sir", "Lord", "Duke", "Baron", "Major", "Admiral", "Knight", "Agent", "Chief", "Guru", "Sensei", "Master", "Archon", "Magus", "Warlock", "Wizard", "Sorcerer", "Prophet"
+    };
+    private static final String[] FEMALE_TITLES = {
+            "Lady", "Dame", "Queen", "Duchess", "Baroness", "Princess", "Empress", "Countess", "Priestess"
+    };
+    private static final String[] NEUTRAL_TITLES = {
+            "Captain", "Sage", "Oracle", "Cipher", "Pilot", "Scout", "Warden", "Architect", "Guardian", "Navigator"
     };
 
-    private static final String[] FEMALE_NAMES = {
-        "Lady Lambda", "Duchess Deploy", "Countess Config", "Queen Query",
-        "Princess Parse", "Baroness Binary", "Dame Docker", "Empress Endpoint",
-        "Madam Module", "Sage Servlet", "Oracle Output", "Maven Matrix",
-        "Cipher Crystal", "Beacon Bloom", "Rune River"
-    };
+    private static final Map<String, String[]> DIVISION_NOUNS = Map.of(
+            "Individual Life", new String[]{"Life", "Beacon", "Harbor", "Compass", "Lantern", "Lifeline"},
+            "Group Life", new String[]{"Guild", "Cohort", "Alliance", "Squad", "Circle", "Collective"},
+            "Health", new String[]{"Pulse", "Clinic", "Remedy", "Vital", "Wellness", "Helix"}
+    );
 
-    private static final String[] OTHER_NAMES = {
-        "Phoenix Flux", "Nebula Node", "Comet Compiler", "Astro API",
-        "Quantum Queue", "Stellar Stream", "Cosmo Cursor", "Nova Null",
-        "Eclipse Entity", "Orbit Object", "Pulsar Patch", "Galaxy Gate",
-        "Zenith Zero", "Vortex Value", "Prism Port"
-    };
-
-    private int nameCounterMale = 0;
-    private int nameCounterFemale = 0;
-    private int nameCounterOther = 0;
+    private static final Map<String, String[]> JOB_EPITHETS = Map.of(
+            "Software Engineer", new String[]{
+                    "Byte", "Kernel", "Stack", "Compiler", "Runtime", "Patch",
+                    "API", "Commit", "Merge", "Branch", "CLI", "Daemon",
+                    "Thread", "Heap", "Cache", "Index", "Opcode", "Refactor"
+            },
+            "UI Specialist", new String[]{
+                    "Pixel", "Canvas", "Layout", "Palette", "Chrome", "Vector",
+                    "Grid", "Typography", "Shader", "Spline", "Contrast", "Motion",
+                    "Figma", "Prototype", "Viewport", "Tooltip", "Icon", "Glow"
+            },
+            "Apprentice", new String[]{
+                    "Rookie", "Spark", "Seed", "Novice", "Learner", "Sprout",
+                    "Cadet", "Trainee", "Sidekick", "Intern", "Forge", "Quest"
+            },
+            "Business Analyst", new String[]{
+                    "Insight", "Metric", "Signal", "Forecast", "Query", "Ledger",
+                    "KPI", "Dashboard", "Trend", "Variance", "Hypothesis", "Model",
+                    "Benchmark", "Segment", "Cohort", "Funnel"
+            },
+            "Product Owner", new String[]{
+                    "Vision", "Roadmap", "Backlog", "Value", "Outcome", "NorthStar",
+                    "Scope", "Pivot", "Launch", "Beta", "MVP", "OKR",
+                    "Stakeholder", "Discovery", "Experiment", "Impact"
+            },
+            "Agile Master", new String[]{
+                    "Sprint", "Flow", "Kaizen", "Cadence", "Tempo", "Harmony",
+                    "Standup", "Retro", "Kanban", "WIP", "Scrum", "Burndown",
+                    "Backpressure", "Swarm", "Unblock", "Velocity"
+            },
+            "Others", new String[]{
+                    "Nova", "Orbit", "Prism", "Beacon", "Pulse", "Vertex",
+                    "Cipher", "Nexus", "Quantum", "Helix", "Atlas", "Rune"
+            }
+    );
 
     @PostConstruct
     public void init() {
         String[] groupNames = {
-            "Alpha Architects", "Beta Builders", "Gamma Guardians",
-            "Delta Drivers", "Epsilon Engineers", "Zeta Zealots",
-            "Eta Explorers", "Theta Thinkers", "Iota Innovators", "Kappa Knights"
+                "Alpha Architects - Gruppe 1", "Beta Builders - Gruppe 2", "Gamma Guardians - Gruppe 3",
+                "Delta Drivers - Gruppe 4", "Epsilon Engineers - Gruppe 5", "Zeta Zealots - Gruppe 6",
+                "Eta Explorers - Gruppe 7", "Theta Thinkers - Gruppe 8", "Iota Innovators - Gruppe 9", "Kappa Knights - Gruppe 10"
         };
         String[] rooms = {
-            "W-R1.141", "W-R2.186", "W-R3.141", "W-R3.186", "W-R1.186",
-            "W-R1.161", "W-R2.163", "W-R3.161", "W-R2.164", "W-R3.163"
+                "W-R1.141", "W-R2.186", "W-R3.141", "W-R3.186", "W-R1.186",
+                "W-R1.161", "W-R2.163", "W-R3.161", "W-R2.164", "W-R3.163"
         };
         for (int i = 0; i < 10; i++) {
-            String id = "group-" + (i + 1);
-            String url = "https://hackathon.axa.ch/group/" + id;
+            String id = "Gruppe+" + (i + 1);
+            String url = "https://confluence.axa.com/confluence/spaces/LifePrd/pages/708814182/" + id;
             groups.put(id, new Group(id, groupNames[i], url, rooms[i]));
         }
     }
 
-    public synchronized String generateName(String gender) {
-        switch (gender.toLowerCase()) {
-            case "male":
-                return MALE_NAMES[nameCounterMale++ % MALE_NAMES.length];
-            case "female":
-                return FEMALE_NAMES[nameCounterFemale++ % FEMALE_NAMES.length];
-            default:
-                return OTHER_NAMES[nameCounterOther++ % OTHER_NAMES.length];
-        }
+    public synchronized String generateName(String gender, String jobProfile, String division) {
+        String[] titles = pickTitles(gender);
+        String[] divTokens = DIVISION_NOUNS.getOrDefault(division, new String[]{"Phoenix", "Atlas", "Horizon"});
+        String[] jobTokens = JOB_EPITHETS.getOrDefault(jobProfile, new String[]{"Module", "Signal", "Vector"});
+
+        int h = stableHash(normalize(gender) + "|" + normalize(division) + "|" + normalize(jobProfile));
+
+        String title = titles[h % titles.length];
+        String divToken = divTokens[(h / 7) % divTokens.length];
+        String jobToken = jobTokens[(h / 13) % jobTokens.length];
+
+        return title + " " + divToken + " " + jobToken;
+    }
+
+    private static String generateNameWithSalt(String gender, String jobProfile, String division, int salt) {
+        String[] titles = pickTitles(gender);
+        String[] divTokens = DIVISION_NOUNS.getOrDefault(division, new String[]{"Phoenix", "Atlas", "Horizon"});
+        String[] jobTokens = JOB_EPITHETS.getOrDefault(jobProfile, new String[]{"Module", "Signal", "Vector"});
+
+        int h = stableHash(normalize(gender) + "|" + normalize(division) + "|" + normalize(jobProfile) + "|" + salt);
+
+        String title = titles[h % titles.length];
+        String divToken = divTokens[(h / 7) % divTokens.length];
+        String jobToken = jobTokens[(h / 13) % jobTokens.length];
+
+        return title + " " + divToken + " " + jobToken;
+    }
+
+    private static String[] pickTitles(String gender) {
+        if (gender == null) return NEUTRAL_TITLES;
+        return switch (gender.toLowerCase()) {
+            case "male" -> MALE_TITLES;
+            case "female" -> FEMALE_TITLES;
+            default -> NEUTRAL_TITLES;
+        };
+    }
+
+    private static String normalize(String s) {
+        return s == null ? "" : s.trim().toLowerCase();
+    }
+
+    private static int stableHash(String s) {
+        return (s == null ? 0 : s.hashCode()) & 0x7fffffff;
     }
 
     public String generateAvatarUrl(String gender, String name) {
-        String seed = name.replaceAll("\\s+", "");
-        // Using DiceBear API for avatar generation
-        String style = gender.equalsIgnoreCase("male") ? "adventurer" :
-                       gender.equalsIgnoreCase("female") ? "adventurer" : "bottts";
-        return "https://api.dicebear.com/7.x/" + style + "/svg?seed=" + seed;
+        String seed = seed(name);
+
+        String style = "personas";
+        String params = switch (normalizeAvatarUrl(gender)) {
+            case "male" -> personasMaleParams();
+            case "female" -> personasFemaleParams();
+            default -> personasNeutralParams();
+        };
+
+        return "https://api.dicebear.com/9.x/"
+               + style
+               + "/svg?seed=" + url(seed)
+               + params;
+    }
+
+    private static String personasMaleParams() {
+        return "&hair=bald,balding,beanie,buzzcut,cap,fade,mohawk,shortCombover,shortComboverChops"
+               + "&facialHair=beardMustache,goatee,pyramid,shadow,soulPatch,walrus"
+               + "&facialHairProbability=50"
+                + "&mouth=bigSmile,pacifier,smile,smirk,surprise";
+    }
+
+    private static String personasFemaleParams() {
+        return "&hair=bobBangs,bobCut,bunUndercut,curly,curlyBun,curlyHighTop,extraLong,long,pigtails,sideShave,straightBun"
+               + "&facialHairProbability=0"
+                + "&mouth=bigSmile,pacifier,smile,smirk,surprise,lips";
+    }
+
+    private static String personasNeutralParams() {
+        return "&hair=bald,beanie,sideShave,mohawk,long,curly,curlyBun"
+                + "&mouth=bigSmile,pacifier,smile,smirk,surprise";
+    }
+
+    private static String seed(String name) {
+        String base = (name == null ? "Phoenix" : name).replaceAll("\\s+", "");
+        return base.isBlank() ? "Phoenix" : base;
+    }
+
+    private static String normalizeAvatarUrl(String s) {
+        return s == null ? "" : s.trim().toLowerCase();
+    }
+
+    private static String url(String s) {
+        return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 
     public User getOrCreateUser(String sessionId) {
@@ -87,23 +195,40 @@ public class UserStore {
     public User registerUser(String sessionId, String gender, String jobProfile, String division) {
         User user = usersBySession.get(sessionId);
         if (user != null && user.isRegistered()) {
-            return user; // immutable
+            return user;
         }
         if (user == null) {
             user = new User(sessionId);
             usersBySession.put(sessionId, user);
         }
+
         String id = UUID.randomUUID().toString().substring(0, 8);
         user.setId(id);
         user.setGender(gender);
         user.setJobProfile(jobProfile);
         user.setDivision(division);
-        String name = generateName(gender);
-        user.setGeneratedName(name);
-        user.setAvatarUrl(generateAvatarUrl(gender, name));
+
+        String uniqueName = allocateUniqueName(id, gender, jobProfile, division);
+        user.setGeneratedName(uniqueName);
+        user.setAvatarUrl(generateAvatarUrl(gender, uniqueName));
+
         user.setRegistered(true);
         usersById.put(id, user);
         return user;
+    }
+
+    private String allocateUniqueName(String userId, String gender, String jobProfile, String division) {
+        for (int salt = 0; salt < MAX_NAME_ATTEMPTS; salt++) {
+            String candidate = (salt == 0)
+                    ? generateName(gender, jobProfile, division)
+                    : generateNameWithSalt(gender, jobProfile, division, salt);
+
+            String existing = nameToUserId.putIfAbsent(candidate, userId);
+            if (existing == null || existing.equals(userId)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not allocate unique name after " + MAX_NAME_ATTEMPTS + " attempts");
     }
 
     public User getUserBySession(String sessionId) {
@@ -116,6 +241,16 @@ public class UserStore {
 
     public Map<String, Group> getGroups() {
         return groups;
+    }
+
+    public List<User> getUsersForGroup(String groupId) {
+        Group group = groups.get(groupId);
+        if (group == null || group.getUserIds() == null) return List.of();
+
+        return group.getUserIds().stream()
+                .map(usersById::get)
+                .filter(u -> u != null && u.isRegistered())
+                .collect(Collectors.toList());
     }
 
     public void assignUserToGroup(String userId, String groupId) {
