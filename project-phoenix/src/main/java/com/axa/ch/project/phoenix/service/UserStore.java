@@ -90,9 +90,8 @@ public class UserStore {
                 "W-R1.161", "W-R2.163", "W-R3.161", "W-R2.164", "W-R3.163"
         };
         for (int i = 0; i < 10; i++) {
-            String id = "Gruppe+" + (i + 1);
-            String url = "https://confluence.axa.com/confluence/spaces/LifePrd/pages/708814182/" + id;
-            groups.put(id, new Group(id, groupNames[i], url, rooms[i]));
+            String id = "Gruppe " + (i + 1);
+            groups.put(id, new Group(id, groupNames[i], rooms[i]));
         }
     }
 

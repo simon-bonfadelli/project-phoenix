@@ -23,10 +23,9 @@
         body { font-family: var(--axa-font); margin: 0; padding: 16px; background: var(--axa-grey-light); color: var(--axa-grey-text); }
         .container { max-width: 1000px; margin: 0 auto; }
         .card { background: var(--axa-white); padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 16px; }
-        h1 { color: var(--axa-blue); font-size: 1.5rem; }
+        h1 { color: var(--axa-blue); font-size: 1.5rem; margin: 0 0 16px; }
         h2 { color: var(--axa-blue); font-size: 1.15rem; margin: 0 0 12px; }
 
-        /* Responsive table */
         .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; min-width: 500px; }
         th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--axa-grey-border); font-size: 0.875rem; }
@@ -51,6 +50,10 @@
         }
         textarea:focus { outline: none; border-color: var(--axa-blue); }
 
+        .muted { color: #666; font-size: 0.9rem; }
+
+        .status { margin-top: 10px; font-size: 0.9rem; color: #444; }
+
         @media (max-width: 600px) {
             .card { padding: 12px; }
             th, td { padding: 8px 6px; font-size: 0.8rem; }
@@ -68,24 +71,36 @@
     <h1>🛠 Project Phoenix — Admin</h1>
 
     <div class="card">
-        <h2>Registered Users (<span id="count" th:text="${#lists.size(users)}">0</span>)</h2>
+        <h2>
+            Registered Users (<span id="count" th:text="${#lists.size(users)}">0</span>)
+            | Allocated (<span id="allocated-count">0</span>)
+            | Unallocated (<span id="unallocated-count">0</span>)
+        </h2>
+
         <div class="table-wrap">
             <table>
                 <thead>
-                <tr><th>Avatar</th><th>Name</th><th>Gender</th><th>Job Profile</th><th>Division</th><th>Group</th></tr>
+                <tr>
+                    <th>Avatar</th>
+                    <th>Name</th>
+                    <th>Gender</th>
+                    <th>Job Profile</th>
+                    <th>Division</th>
+                    <th>Group</th>
+                </tr>
                 </thead>
                 <tbody id="user-table"
                        hx-ext="sse"
                        sse-connect="/admin/sse"
                        sse-swap="user-update"
                        hx-swap="beforeend">
-                <tr th:each="user : ${users}" th:id="'user-' + ${user.id}">
-                    <td><img th:src="${user.avatarUrl}" width="32" height="32" alt="avatar"/></td>
-                    <td th:text="${user.generatedName}"></td>
-                    <td th:text="${user.gender}"></td>
-                    <td th:text="${user.jobProfile}"></td>
-                    <td th:text="${user.division}"></td>
-                    <td th:text="${user.groupId != null ? user.groupId : '-'}"></td>
+                <tr th:each="u : ${users}" th:id="${'user-' + u.id}">
+                    <td><img th:src="${u.avatarUrl}" width="32" height="32" alt="Avatar"/></td>
+                    <td th:text="${u.generatedName}">Name</td>
+                    <td th:text="${u.gender}">Gender</td>
+                    <td th:text="${u.jobProfile}">Job</td>
+                    <td th:text="${u.division}">Division</td>
+                    <td class="group-col" th:text="${u.groupId != null && !#strings.isEmpty(u.groupId) ? u.groupId : '-'}">-</td>
                 </tr>
                 </tbody>
             </table>
@@ -95,37 +110,85 @@
     <div class="card">
         <h2>Export / Import</h2>
         <div class="btn-group">
-            <button class="btn btn-primary" onclick="exportUsers()">📤 Export JSON</button>
-            <button class="btn btn-success" onclick="importGroups()">📥 Import Groups</button>
+            <button class="btn btn-primary" type="button" onclick="exportUsers()">📤 Export JSON</button>
+            <button class="btn btn-success" type="button" onclick="importGroups()">📥 Import Groups</button>
+            <button class="btn btn-primary" type="button" onclick="allocateUsers()">🎯 Allocate New Users</button>
         </div>
+
         <textarea id="json-area" placeholder='Export will appear here. For import, paste JSON like:
 {
   "groupAssignments": {
-    "Gruppe+1": ["userId1", "userId2"],
-    "Gruppe+2": ["userId3", "userId4"]
-    "Gruppe+3": ["userId5", "userId6"]
-    "Gruppe+4": ["userId7", "userId8"]
-    "Gruppe+5": ["userId9", "userId10"]
-    "Gruppe+6": ["userId11", "userId12"]
-    "Gruppe+7": ["userId13", "userId14"]
-    "Gruppe+8": ["userId15", "userId16"]
-    "Gruppe+9": ["userId17", "userId18"]
-    "Gruppe+10": ["userId19", "userId20"]
+    "Gruppe 1": ["userId1", "userId2"],
+    "Gruppe 2": ["userId3", "userId4"],
+    "Gruppe 3": ["userId5", "userId6"],
+    "Gruppe 4": ["userId7", "userId8"],
+    "Gruppe 5": ["userId9", "userId10"],
+    "Gruppe 6": ["userId11", "userId12"],
+    "Gruppe 7": ["userId13", "userId14"],
+    "Gruppe 8": ["userId15", "userId16"],
+    "Gruppe 9": ["userId17", "userId18"],
+    "Gruppe 10": ["userId19", "userId20"]
   }
 }'></textarea>
+
+        <div id="status" class="status"></div>
     </div>
 
     <div class="card">
         <h2>Available Groups</h2>
         <div class="table-wrap">
             <table>
-                <thead><tr><th>ID</th><th>Name</th><th>Room</th><th>QR URL</th></tr></thead>
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Room</th>
+                </tr>
+                </thead>
                 <tbody>
-                <tr th:each="group : ${groups}">
-                    <td th:text="${group.id}"></td>
-                    <td th:text="${group.name}"></td>
-                    <td th:text="${group.room}"></td>
-                    <td style="word-break: break-all;" th:text="${group.qrCodeUrl}"></td>
+                <tr th:each="g : ${groups}">
+                    <td th:text="${g.name}">Group</td>
+                    <td th:text="${g.room}">Room</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Distribution check</h2>
+
+        <p class="muted" style="margin-top: 0;">
+            Pass = for each value: max(# in any group) - min(# in any group) ≤ allowed deviation. CV closer to 0 is more even.
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Attribute</th>
+                    <th>Overall pass</th>
+                    <th>Allowed deviation</th>
+                    <th>Worst CV</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>Gender</td>
+                    <td th:text="${stats.evennessGender.overallPass}">false</td>
+                    <td th:text="${stats.evennessGender.allowedDeviation}">0</td>
+                    <td th:text="${stats.evennessGender.worstCv}">0</td>
+                </tr>
+                <tr>
+                    <td>Division</td>
+                    <td th:text="${stats.evennessDivision.overallPass}">false</td>
+                    <td th:text="${stats.evennessDivision.allowedDeviation}">0</td>
+                    <td th:text="${stats.evennessDivision.worstCv}">0</td>
+                </tr>
+                <tr>
+                    <td>Job Profile</td>
+                    <td th:text="${stats.evennessJobProfile.overallPass}">false</td>
+                    <td th:text="${stats.evennessJobProfile.allowedDeviation}">0</td>
+                    <td th:text="${stats.evennessJobProfile.worstCv}">0</td>
                 </tr>
                 </tbody>
             </table>
@@ -134,26 +197,90 @@
 </div>
 
 <script>
+    function setStatus(msg) {
+        const el = document.getElementById('status');
+        if (el) el.textContent = msg || '';
+    }
+
+    function recomputeCounters() {
+        const tbody = document.getElementById('user-table');
+        const countEl = document.getElementById('count');
+        const allocatedEl = document.getElementById('allocated-count');
+        const unallocatedEl = document.getElementById('unallocated-count');
+        if (!tbody || !countEl || !allocatedEl || !unallocatedEl) return;
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        let allocated = 0;
+        let unallocated = 0;
+
+        for (const r of rows) {
+            const groupCell = r.querySelector('td.group-col') || r.querySelector('td:last-child');
+            const groupText = (groupCell ? groupCell.textContent : '').trim();
+            if (!groupText || groupText === '-') unallocated++;
+            else allocated++;
+        }
+
+        countEl.textContent = String(rows.length);
+        allocatedEl.textContent = String(allocated);
+        unallocatedEl.textContent = String(unallocated);
+    }
+
+    document.addEventListener('DOMContentLoaded', recomputeCounters);
+
+    document.body.addEventListener('htmx:sseMessage', function (evt) {
+        if (evt && evt.detail && evt.detail.type === 'user-update') {
+            recomputeCounters();
+        }
+    });
+
     async function exportUsers() {
-        const res = await fetch('/admin/export');
-        const data = await res.json();
-        document.getElementById('json-area').value = JSON.stringify(data, null, 2);
+        try {
+            setStatus('Exporting...');
+            const res = await fetch('/admin/export');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            document.getElementById('json-area').value = JSON.stringify(data, null, 2);
+            setStatus('Export complete.');
+        } catch (e) {
+            setStatus('Export failed: ' + e.message);
+            alert('Export failed: ' + e.message);
+        }
     }
 
     async function importGroups() {
         const json = document.getElementById('json-area').value;
         try {
-            const data = JSON.parse(json);
+            setStatus('Importing...');
+            const payload = JSON.parse(json);
+
             const res = await fetch('/admin/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: JSON.stringify(payload)
             });
+
             const text = await res.text();
-            alert(text);
+            if (!res.ok) throw new Error(text || ('HTTP ' + res.status));
+
+            setStatus(text || 'Import successful.');
             location.reload();
         } catch (e) {
-            alert('Invalid JSON: ' + e.message);
+            setStatus('Import failed: ' + e.message);
+            alert('Import failed: ' + e.message);
+        }
+    }
+
+    async function allocateUsers() {
+        try {
+            setStatus('Allocating...');
+            const res = await fetch('/admin/allocate', { method: 'POST' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            await res.json();
+            setStatus('Allocation complete.');
+            location.reload();
+        } catch (e) {
+            setStatus('Allocation failed: ' + e.message);
+            alert('Allocation failed: ' + e.message);
         }
     }
 </script>

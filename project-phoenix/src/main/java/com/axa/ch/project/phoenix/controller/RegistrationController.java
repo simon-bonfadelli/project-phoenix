@@ -2,7 +2,6 @@ package com.axa.ch.project.phoenix.controller;
 
 import com.axa.ch.project.phoenix.model.Group;
 import com.axa.ch.project.phoenix.model.User;
-import com.axa.ch.project.phoenix.service.QrCodeService;
 import com.axa.ch.project.phoenix.service.SseService;
 import com.axa.ch.project.phoenix.service.UserStore;
 import jakarta.servlet.http.HttpSession;
@@ -14,19 +13,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.List;
-
 @Controller
 public class RegistrationController {
 
     private final UserStore userStore;
     private final SseService sseService;
-    private final QrCodeService qrCodeService;
 
-    public RegistrationController(UserStore userStore, SseService sseService, QrCodeService qrCodeService) {
+    public RegistrationController(UserStore userStore, SseService sseService) {
         this.userStore = userStore;
         this.sseService = sseService;
-        this.qrCodeService = qrCodeService;
     }
 
     @GetMapping("/")
@@ -37,7 +32,7 @@ public class RegistrationController {
             Group group = userStore.getGroupForUser(session.getId());
             if (group != null) {
                 model.addAttribute("group", group);
-                model.addAttribute("qrCode", qrCodeService.generateQrCodeBase64(group.getQrCodeUrl()));
+                // QR code removed from UI, so no qrCode model attribute needed.
             }
             return "registered";
         }
@@ -57,7 +52,7 @@ public class RegistrationController {
         String html = renderUserRow(user);
         sseService.notifyAdmins(html);
 
-        return "registered";
+        return "redirect:/";
     }
 
     @GetMapping("/sse/user")
@@ -74,61 +69,24 @@ public class RegistrationController {
         }
 
         Group group = userStore.getGroupForUser(session.getId());
-        String qr = qrCodeService.generateQrCodeBase64(group.getQrCodeUrl());
-
-        List<User> members = userStore.getUsersForGroup(group.getId());
-        String rowsHtml = members.stream()
-                .map(this::renderMemberRow)
-                .reduce("", String::concat);
-
-        int count = members.size();
+        if (group == null) {
+            return "<div id=\"group-info\"><p>No group assigned yet. Please wait...</p></div>";
+        }
 
         return "<div id=\"group-info\">" +
                "<div class=\"card\">" +
-               "<h2>🎉 You've been assigned!</h2>" +
-               "<h3>" + escapeHtml(group.getName()) + "</h3>" +
-               "<p><strong>Room:</strong> " + escapeHtml(group.getRoom()) + "</p>" +
-               "<img src=\"data:image/png;base64," + qr + "\" alt=\"QR Code\" />" +
-               "<a class=\"cta-link\" href=\"http://go/phoenix\">Go to `http://go/phoenix`</a>" +
-               "<p><small>" + escapeHtml(group.getQrCodeUrl()) + "</small></p>" +
+               "<h3>🎉 You’ve been assigned!</h3>" +
+               "<h2>" + escapeHtml(group.getName()) + "</h2>" +
+               "<div class=\"room-big\">" +
+               "<div class=\"room-label\">Room</div>" +
+               "<div>" + escapeHtml(group.getRoom()) + "</div>" +
                "</div>" +
-
-               "<div class=\"card\">" +
-               "<h2>Group members (" + count + ")</h2>" +
-               "<div class=\"table-wrap\">" +
-               "<table>" +
-               "<thead>" +
-               "<tr>" +
-               "<th>Avatar</th>" +
-               "<th>Name</th>" +
-               "<th>Gender</th>" +
-               "<th>Job Profile</th>" +
-               "<th>Division</th>" +
-               "</tr>" +
-               "</thead>" +
-               "<tbody>" +
-               rowsHtml +
-               "</tbody>" +
-               "</table>" +
+               "<div class=\"remark\">" +
+               "<p><strong>Next:</strong> Go to your room now to dive into the mysteries of the Legacy.</p>" +
+               "<p><strong>Then:</strong> On your working laptop start <i>Microsoft Edge</i> and open <strong>go/phoenix</strong>.</p>" +
                "</div>" +
                "</div>" +
                "</div>";
-    }
-
-    private String renderMemberRow(User user) {
-        String avatarUrl = escapeHtml(user.getAvatarUrl());
-        String name = escapeHtml(user.getGeneratedName());
-        String gender = escapeHtml(user.getGender());
-        String jobProfile = escapeHtml(user.getJobProfile());
-        String division = escapeHtml(user.getDivision());
-
-        return "<tr id=\"member-" + escapeHtml(user.getId()) + "\">" +
-               "<td><img src=\"" + avatarUrl + "\" width=\"32\" height=\"32\" alt=\"avatar\"/></td>" +
-               "<td>" + name + "</td>" +
-               "<td>" + gender + "</td>" +
-               "<td>" + jobProfile + "</td>" +
-               "<td>" + division + "</td>" +
-               "</tr>";
     }
 
     private static String escapeHtml(String s) {

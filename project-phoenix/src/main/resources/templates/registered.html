@@ -1,3 +1,4 @@
+<!-- src/main/resources/templates/registered.html -->
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -32,26 +33,44 @@
             display: inline-block; padding: 6px 16px; border-radius: 20px;
             background: #e8e8ff; color: var(--axa-blue); margin: 4px 2px; font-size: 1rem; font-weight: 600;
         }
-        #group-info img { max-width: 200px; width: 100%; height: auto; }
         #group-info .card { border-top: 4px solid var(--axa-blue); }
         .waiting { color: #999; font-size: 1.1rem; }
 
-        /* Prominent link button */
-        .cta-link {
-            display: block;
-            width: 100%;
-            margin-top: 20px;
-            padding: 14px 16px;
-            border-radius: 6px;
-            background: var(--axa-blue);
-            color: var(--axa-white);
-            text-decoration: none;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .room-big {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            background: #f0f2ff;
+            border: 2px solid var(--axa-blue);
+            color: var(--axa-blue);
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            line-height: 1.15;
         }
-        .cta-link:hover { background: var(--axa-blue-dark); }
-        .cta-link:active { transform: scale(0.99); }
+
+        .room-big .room-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            opacity: 0.85;
+            margin-bottom: 4px;
+        }
+
+        .remark {
+            margin-top: 14px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fff7f7;
+            border: 1px solid #ffd0d2;
+            color: #6b1a1d;
+            text-align: left;
+            font-size: 1.05rem;
+            line-height: 1.35;
+        }
+
+        .remark strong { color: #3a0e10; }
 
         @media (min-width: 600px) {
             body { padding: 40px 16px; }
@@ -59,7 +78,8 @@
             img.avatar { width: 120px; height: 120px; }
             h1 { font-size: 2.25rem; }
             h2 { font-size: 1.75rem; }
-        }
+            .room-big { font-size: 2.25rem; }
+            .room-big .room-label { font-size: 0.9rem; }        }
     </style>
 </head>
 <body>
@@ -79,13 +99,20 @@
          sse-swap="group-update"
          hx-swap="innerHTML">
         <div th:if="${group != null}" class="card">
-            <h2>🎉 You've been assigned!</h2>
-            <h3 th:text="${group.name}">Group</h3>
-            <p><strong>Room:</strong> <span th:text="${group.room}">Room</span></p>
-            <img th:src="'data:image/png;base64,' + ${qrCode}" alt="QR Code"/>
-            <a class="cta-link" href="http://go/phoenix">Go to `http://go/phoenix`</a>
-            <p><small th:text="${group.qrCodeUrl}">URL</small></p>
+            <h3>🎉 You’ve been assigned!</h3>
+            <h2 th:text="${group.name}">Group</h2>
+
+            <div class="room-big">
+                <div class="room-label">Room</div>
+                <div th:text="${group.room}">Room</div>
+            </div>
+
+            <div class="remark">
+                <p><strong>Next\:</strong> Go to your room now to dive into the mysteries of the Legacy\.</p>
+                <p><strong>Then\:</strong> On your working laptop start <i>Microsoft Edge</i> and open <strong>go/phoenix</strong>\</p>
+            </div>
         </div>
+
         <div th:if="${group == null}" class="card">
             <p class="waiting">⏳ Waiting for group assignment...</p>
         </div>
